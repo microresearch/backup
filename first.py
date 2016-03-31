@@ -17,9 +17,6 @@ def rrr(ranger):
     r= (random.uniform(ranger/-2, ranger/2),random.uniform(ranger/-2, ranger/2)) 
     return r;
 
-
-# worm movement algorithm and how this is applied as needs to be across a grid (a grid of words but is normally long list)
-
 def normalize(tup):
     x=tup[0]
     y=tup[1]
@@ -33,7 +30,7 @@ def limit(tup,limit):
     x=tup[0]
     y=tup[1]
     # limit magnitude to limit how????
-    if math.sqrt(x*x + y*y) > limit:
+    if math.sqrt(x*x + y*y) > limit*limit:
         (x,y)=normalize(tup)
         x=x*limit
         y=y*limit
@@ -159,7 +156,7 @@ class worm():
             word=self.wander()
             if word[0][0]=="worm" or word=="Worm" or word=="WORM" or word=="worms" or word=="Worms":
                 self.target=word[1] 
-                print self.target
+#                print self.target
             return (word[0],word[1]) # returns word, POS and location
         else: # move towards target
             self.acc=(self.target[0]-self.loc[0], self.target[1]-self.loc[1])
@@ -181,26 +178,31 @@ class worm():
             word=line[int(self.loc[0])]
             return (word,self.loc) # returns word, POS and location
  
-# TODO diff movements -> move randomly then towards targets, away from targets, up and then down, establish wormholes
+# TODO diff movements -> move randomly then towards targetsDONE, away
+# from targets, up and then down, establish wormholes -> how these
+# work - through to different worms, texts///stack of texts?
 
-# example which rewrites straight read text with wormed POS
+# below example which rewrites straight read text with wormed POS
+# how to make more generic - worm interaction?
 
-loc=(randy(100),randy(100))
-speed=2
+random.seed()
+loc=(randy(20),randy(20))
+loc2=(randy(20),randy(20))
+speed=1
 maxspeed=4
 firstworm=worm(loc,speed,maxspeed, "conqueror_pickle", 'squiggler')
-secondworm=worm(loc,1,maxspeed, "conqueror_pickle", 'bookworm')
+secondworm=worm(loc2,1,maxspeed, "conqueror_pickle", 'seeker')
 
-# for x in xrange(1000):
-#     pos=secondworm.function()[0][1]
-#     other = firstworm.function()[0]
-#     otherpos=""
-#     count=0
-#     while otherpos != pos and count<1000:
-#         other = firstworm.function()[0]
-#         otherpos=other[1]
-#         count +=1
-#     print other[0], 
+for x in xrange(100):
+    pos=secondworm.function()[0][1]
+    other = firstworm.function()[0]
+    otherpos=""
+    count=0
+    while otherpos != pos and count<1000:
+        other = firstworm.function()[0]
+        otherpos=other[1]
+        count +=1
+    print other[0], 
 
 # to resolve - spaces before punctuation
 
@@ -220,7 +222,7 @@ for x in xrange(100):
     yy.append(pp[1][1])
 plt.plot(xx,yy)
 plt.show()
-# print test
+print test
 
 ####///////////////////////////////////////////////////////////////////
 
@@ -246,6 +248,4 @@ plt.show()
 
 # emblems as part of text?
 
-# TODO:
-# first test with text-> clean text, annotate it and make grid of this (ww, wh noted for each//all texts, appended)
-# and basic worm possibilities
+# compost class/functions with re-pickling
