@@ -13,10 +13,10 @@ def storepickle(text,where):
 
 listy=[]
 senslist=[]
-raw = open("../texts/conquerorworm").read()
+raw = open("../texts/fullblake.txt").read()
 cleaned = textclean.clean(raw)
 listy=textdata.textlines(cleaned, noblanks=True, dedent=True, lstrip=False, rstrip=True, join=False)
-print listy, len(listy)
+#print listy, len(listy)
 
 for lists in listy:
     sens = [word.lower() 
@@ -31,7 +31,7 @@ for sensy in senslist:
     sentt.append(("\n","NL")) # adds newline POS!
     fullsentt.append(sentt)
 
-storepickle(fullsentt,"conqueror_pickle")
+storepickle(fullsentt,"fullblake_pickle")
 
 #for line in fullsentt:
 #    print line
