@@ -5,6 +5,18 @@ import math
 import nltk
 import matplotlib.pyplot as plt
 import pickle
+import collections
+import functools
+import itertools
+
+cmudict = nltk.corpus.cmudict.dict()
+
+def rhyme(a, b):
+    if a.lower() not in cmudict or b not in cmudict or a == b:
+        return False
+    wsa = list(reversed(cmudict[a.lower()][0]))
+    wsb = list(reversed(cmudict[b.lower()][0]))
+    return len(list(itertools.takewhile(lambda x: x[0] == x[1], zip(wsa, wsb)))) >= min(2, len(list(wsa)))
 
 def recallpickle(where):
     out = open(where, 'rb')
@@ -14,6 +26,13 @@ def recallpickle(where):
 
 def randy(num):
     return random.randrange(0, num, 1)
+
+def randyx(xnum,num):
+    x= None
+    while x==xnum or x is None:
+        x= randy(num)
+    return x
+
 
 def rrr(ranger):
     r= (random.uniform(ranger/-2, ranger/2),random.uniform(ranger/-2, ranger/2)) 
@@ -38,32 +57,55 @@ def limit(tup,limit):
         y=y*limit
     return (x,y)
 
-def matcher(matchfunc, matchone, matchtwo):
+def matchonlyfirst(matchone,matchtwo): # just return the first word - also used for testing
+    return matchone()[0]
+
+def matchswop(matchone,matchtwo): # swop words
+    if randy(100)>50:
+        return matchone()[0]
+    else:
+        return matchtwo()[0]
+
+
+def matchpos(matchone,matchtwo): # look for match
     count=0
-    pos= matchone()[0][1]
+    pos= matchone()[0][1] # [1] is pos
     otherpos=""
-    while otherpos != pos and count<100: # redo with match function
+    while otherpos != pos and count<100: # TODO: redo with match function - match(this,that) eg use matchone()[0]
         count+=1
         other=matchtwo()[0]
         otherpos=other[1]
-#    print other
+    return other
+
+def matchrhyme(matchone,matchtwo): # look for match
+    count=0
+    wordone= matchone()[0][0] # [0] is word
+    wordtwo="xxx"
+#    print rhyme(wordone,wordtwo)
+    while (not rhyme(wordone,wordtwo)) and count<100: # TODO: redo with match function - match(this,that) eg use matchone()[0]
+        count+=1
+        other=matchtwo()[0]
+        wordtwo=other[0]
     return other
 
 class worm():
     compost_stack = -1
     compost = []
     wormlist=[]
+    simplecompost=[]
 
-    def __init__(self, loc, speed, maxspeed, textpickle, wormtype):
+    def __init__(self, loc, speed, maxspeed, textpickle, wormtype, wormfunc):
         self.loc = loc
         self.speed = speed
         self.trail = 8 # set by type of worm
         self.acc=(0,0)
         self.vel=(0,0)
-        self.ww = 24 # or this is based on text/pickle but per line so...
+        #        self.ww = 2400 # or this is based on text/pickle but per line so...
+        #self.wh = 2400 # or this is based on text/pickle but per line so...
         self.maxspeed = maxspeed
         self.tail = []  
         self.counter = 0
+        self.tailcount=0
         self.dir=(7,-4) # change this
         self.SW=1
         self.target=(0,0)
@@ -79,7 +121,7 @@ class worm():
         self.function=self.wormdict[wormtype]
         # also need holes, targets and so on TODO maybe as dictionary or as part of text itself
         self.composter=0
-        self.matchfunc=""
+        self.matchfunc=wormfunc
         for w in xrange(self.trail):
             self.tail.append((self.loc[0],self.loc[1]))
 
@@ -98,9 +140,37 @@ class worm():
 
     def do_tail(self):
         self.tail[self.trail-1]=(self.loc[0],self.loc[1])
-        for w in xrange(trail-2):
+        for w in xrange(self.trail-1):
             self.tail[w]=self.tail[w+1]
             
+    def word_at(self,loc):
+        # check x and y for self.text
+        wh = len(self.text)-1 # number of lines 
+        if int(loc[1])>wh:
+            loc=(loc[0],0)
+        if loc[1]<0:
+            loc=(loc[0],wh)
+        line=self.text[int(loc[1])]
+        ww=len(line)-1
+        if ww>0:
+            if int(loc[0])>ww:
+                loc=(0,loc[1])
+            if loc[0]<0:
+                loc=(ww-1,loc[1])
+        else:
+            loc=(0,loc[1])
+        word=line[int(loc[0])]
+        return word
+
+    def tailword(self):
+        # runfunc/do_tail/cycle through word at tail
+        self.tailcount+=1
+        if self.tailcount>=self.trail-1:
+            self.tailcount=0
+        self.wander() # or another function - how to specify tail as on/off?
+        self.do_tail()
+        return self.word_at(self.tail[self.tailcount])
+
     def checky(self):
         self.wh = len(self.text)-1 # number of lines 
         if int(self.loc[1])>self.wh:
@@ -109,35 +179,41 @@ class worm():
             self.loc=(self.loc[0],self.wh)
 
     def checkx(self):
-        if int(self.loc[0])>self.ww:
+        if self.ww>0:
+            if int(self.loc[0])>self.ww:
+                self.loc=(0,self.loc[1])
+            if self.loc[0]<0:
+                self.loc=(self.ww-1,self.loc[1])
+        else:
             self.loc=(0,self.loc[1])
-        if self.loc[0]<0:
-            self.loc=(self.ww,self.loc[1])
-    
+
     def doinit(self):
         # select compost stack number
-        for worms in self.wormlist:
+        for worms in worm.wormlist:
             if worms.textpickle == "COMPOST":
-                worms.composter=randy(worm.compost_stack) # but only selected from added worms so far!!! ???
+                worms.composter=randyx(worms.stack,worm.compost_stack) # but not itself
+                worms.text=worm.simplecompost
             else: 
                 worms.text = recallpickle(worms.textpickle)
                 # select partner worm
-            worms.partner=randy(len(self.wormlist))
+            if len(worm.wormlist)>1:
+                worms.partner=randyx(worms.stack,len(worm.wormlist)-1)
+            else:
+                worms.partner=0
 
     def doallworms(self):
-        for worms in self.wormlist:
+        for worms in worm.wormlist:
             word=("","")
-            if worms.textpickle=="COMPOST":
-                worms.text=self.compost[self.composter] 
             if len(worms.text)>1:
                 otherlist=[]
                 while word[1]!="NL":
                     # match with otherother according to function eg. posmatch, rhyming 
-                    word=matcher(worms.matchfunc, worms.function, self.wormlist[worms.partner].function)
-                    #other=worms.function()[0]
-                    #otherother=self.wormlist[worms.partner].function()[0]
+                    word=worms.matchfunc(worms.function, worm.wormlist[worms.partner].function)
                     otherlist.append(word)
-                worm.compost[self.stack].append(otherlist)
+                    #                worm.compost[self.stack].append(otherlist)
+                    worm.simplecompost.append(otherlist)
+                #                print worms.function,
+            if worms.textpickle=="COMPOST":
                 print " ".join([x[0] for x in otherlist]),
 
     def wander(self):
@@ -236,7 +312,7 @@ random.seed()
 loc=(randy(20),randy(20))
 loc2=(randy(20),randy(20))
 speed=1
-maxspeed=4
+maxspeed=2
 
 # 'basicworm': self.wander,
 # 'bookworm':self.reader,
@@ -244,13 +320,30 @@ maxspeed=4
 # 'seeker':self.seek,
 # 'squiggler':self.squiggler
 
-firstworm=worm(loc,speed,maxspeed, "conqueror_pickle", 'straightworm')
-secondworm=worm(loc2,1,maxspeed, "conqueror_pickle", 'squiggler')
-thirdworm=worm(loc2,2,maxspeed, "COMPOST", 'squiggler')
-
+firstworm=worm(loc,speed,maxspeed, "fullblake_pickle", 'basicworm',matchonlyfirst)
 firstworm.doinit()
-for x in xrange(1000000):
-    firstworm.doallworms()
+
+for x in xrange(400):
+    print firstworm.tailword()[0],
+
+# test random worm 
+
+# list of texts, list of worms, list of functions
+
+textlist=["fullblake_pickle","conqueror_pickle","lusus_serius_maier_pickle","beddoesvoll_pickle","prematureburial_pickle","usher_pickle","death_pickle","COMPOST"]
+wormlist=['basicworm','bookworm','straightworm','seeker','squiggler']
+funclist=[matchonlyfirst,matchpos,matchrhyme,matchswop]
+
+# wormyy=[]
+
+# for x in xrange(4):
+#     loc=(randy(20),randy(20))
+#     wormyy.append(worm(loc,speed,maxspeed, random.choice(textlist), random.choice(wormlist),random.choice(funclist)))
+
+# wormyy[0].doinit()
+
+# for x in xrange(100):
+#     wormyy[0].doallworms()
 
 # otherlist=[]
 # for x in xrange(1000):
@@ -278,7 +371,7 @@ for x in xrange(1000000):
 
 # [to resolve - spaces before punctuation]
 
-
+#print rhyme("mose","loose")
 
 ####///////////////////////////////////////////////////////////////////
 
@@ -290,7 +383,7 @@ for x in xrange(1000000):
 
 # xx=[]
 # yy=[]
-# for x in xrange(100):
+# for x in xrange(1000):
 #     pp=firstworm.function()
 #     xx.append(pp[1][0])
 #     yy.append(pp[1][1])
@@ -300,26 +393,29 @@ for x in xrange(1000000):
 
 ####///////////////////////////////////////////////////////////////////
 
-# TODO: different types of worms - menagerie each with its emblem, to
-# start to apply multiple worms to text and how we can deal with grid
-# or flatten out 
+# TODO: different types of worms - menagerie each with its emblem
 
-# wormholes, wormholes on POS and words, reworking as text compost
+# wormholes, wormholes on POS and words
 
-# worm through source text (by words or by lines)?
-# worm through substitutions tables for the POS?
+# worm ideas - rising up and descending, worm-holes,
+# glowing=what, segmented worms drag words, other worms make holes
 
-# diff worms //vs// diff text gambits eg. worm thru same text to next/wormed equiv POS
-# src worm//sub worm - and can be same worm/same text/diff texts... eg. same worm diff texts, diff worms, same texts
-# how to organise this...
-
-# worm ideas - rising up and descending, sine, worm-holes,
-# glowing=what, segmented worms drag words, other worms make holes,
-
-# attraction to words - so make text/pos grid (as what?), annotate
-# with wormholes and targets/escapes, multiple worms,
-# re-work/compost-also add holes etc. on each round
+# annotate with wormholes and targets/escapes
 
 # emblems as part of text?
 
-# ***compost class/functions with compost buffer all worms can access with wormholes!
+####///////////////////////////////////////////////////////////////////
+
+# ideas/TODO...
+
+# 5/4: 
+
+# re-worm markov chain probabilities or subject wormed movement text to markov chains
+# movement of worms on rhymes
+
+# 6/4 fixes for lengths and so on, random selections
+
+# could maybe have simpler compost as can't write to own compost, or how to move between layers -> simplecompost implemented
+
+# TODO: wormholes, rising/descending worms, move by rhymes, markov functions/reworking, segmented word worms-done but how to do for each function
+# wormhole jumps to different position - wormhole OVERLAY// concept of overlays
